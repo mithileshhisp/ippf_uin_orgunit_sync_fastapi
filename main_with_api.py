@@ -16,12 +16,15 @@
 #python -m uvicorn main_with_api:app --reload --host 0.0.0.0 --port 8000
 #python -m uvicorn main:app --reload ## This bypasses the exe issue completely
 
+
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
 
 #Create FastAPI app
 app = FastAPI(title="DHIS2 OrgUnit API")
+
 
 import urllib3 ## for disable warning of Certificate
 urllib3.disable_warnings() ## for disable warning of Certificate
@@ -72,8 +75,6 @@ class OrgUnitRequest(BaseModel):
     legal_name: str
     uin_code: str
     tei_uid:str
-
-
 
 
 from utils import (
@@ -355,8 +356,32 @@ async def lifespan(app: FastAPI):
     print("App stopped")
     log_info("App stopped")
 
+# ✅ AFTER lifespan
 app = FastAPI(lifespan=lifespan)
 
+# ✅ CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:8080",
+        "http://localhost:8080",
+        "https://links.hispindia.org"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+### Not recommended for production.
+'''
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+'''
 @app.post("/orgunit-bpr")
 def create_or_update_orgunit(request: OrgUnitRequest):
 
