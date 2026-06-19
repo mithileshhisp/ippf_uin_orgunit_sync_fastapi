@@ -109,6 +109,7 @@ and update the trackedentityinstance attribute value
 # python -m uvicorn main_with_api:app --reload --host 0.0.0.0 --port 8000
 # python -m uvicorn main:app --reload ## This bypasses the exe issue completely
 # http://127.0.0.1:8000/docs
+# https://stage.hispindia.org/docs#/
 
 
 # setup on stage server
@@ -144,6 +145,8 @@ host name : stage.hispindia.org user: ********** pass: ********** port 22
 
 # http://stage.hispindia.org:8000/docs
 # http://45.79.125.242:8000/docs
+# https://stage.hispindia.org/docs#/
+# https://45.79.125.242/docs#/
 
 
 -- Step-by-step: Run FastAPI in background (systemd)

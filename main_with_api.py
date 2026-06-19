@@ -57,8 +57,6 @@ DHIS2_POST_API_URL_PRO = os.getenv("DHIS2_POST_API_URL_PRO")
 DHIS2_POST_USER_PRO = os.getenv("DHIS2_POST_USER_PRO")
 DHIS2_POST_PASSWORD_PRO = os.getenv("DHIS2_POST_PASSWORD_PRO")
 
-
-
 # ✅ GLOBAL SESSIONS (only created once)
 session_get = requests.Session()
 session_post = requests.Session()
@@ -77,10 +75,54 @@ class OrgUnitRequest(BaseModel):
     tei_uid:str
 
 
+from typing import List
+
+class EmailRequest(BaseModel):
+    to_emails: List[str]
+    subject: str
+    body: str
+
+#from pydantic import BaseModel
+#from typing import List
+
+class WaiverEmailRequest(BaseModel):
+
+    to_emails: List[str]
+
+    legal_name: str
+    region: str
+    country: str
+    registration_number: str
+    aoc_name: str
+    flag_category: str
+    flagged_entity: str
+    waiver_date: str
+    justification: str
+
+class RegistrationEmailRequest(BaseModel):
+
+    to_email: str
+    legal_name: str
+    region_code: str
+    country: str
+    registration_number: str
+    submission_date: str
+
+#from pydantic import BaseModel
+
+class UINAssignmentEmailRequest(BaseModel):
+    to_email: str
+    affiliate_name: str
+    legal_name: str
+    uin_code: str
+    affiliation_type: str
+    assignment_date: str
+
+
 from utils import (
     configure_logging,get_tei_details,get_orgunit_details, get_single_orgunit_details,get_orgunit_details_pro,
     log_info,log_error,get_org_and_child_uid,get_org_and_child_attribute_value,update_orgunit_in_dhis2_api,
-    get_cached_orgunits,update_tei_attributeValue_in_dhis2_for_api,push_orgunit_in_dhis2_api,
+    get_cached_orgunits,update_tei_attributeValue_in_dhis2_for_api,push_orgunit_in_dhis2_api,send_email_api,
     push_orgunit_in_dhis2,update_orgunit_in_dhis2
 )
 
@@ -420,6 +462,147 @@ def create_or_update_orgunit(request: OrgUnitRequest):
 
     return result
 
+@app.post("/send-email")
+def send_email_endpoint(request: EmailRequest):
+
+    print("Send Email API called")
+    log_info("Send Email API called")
+
+    response = send_email_api(
+        subject=request.subject,
+        body=request.body,
+        to_emails=request.to_emails
+    )
+
+    if response["status"] == "failed":
+        raise HTTPException(
+            status_code=500,
+            detail=response
+        )
+
+    return response
+
+from utils import send_waiver_email
+
+@app.post("/send-waiver-email")
+def send_waiver_email_api(request: WaiverEmailRequest):
+
+    response = send_waiver_email(request)
+
+    if response["status"] == "failed":
+        raise HTTPException(
+            status_code=500,
+            detail=response
+        )
+
+    return response
+
+from utils import send_registration_email,send_registration_email_aoc,send_uin_assignment_email
+
+@app.post("/send-registration-email")
+#send_registration_email, send_registration_email_aoc
+def send_registration_email_api(request: RegistrationEmailRequest):
+
+    try:
+
+        result = send_registration_email(
+            request.to_email,
+            request.legal_name,
+            request.region_code,
+            request.country,
+            request.registration_number,
+            request.submission_date
+        )
+
+        return result
+
+    except Exception as e:
+
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+@app.post("/send-uin-assignment-email")
+#send_registration_email_aoc
+def send_uin_assignment_email_api(request: UINAssignmentEmailRequest):
+
+    try:
+
+        response = send_uin_assignment_email(request)
+
+        if response["status"] == "failed":
+            raise HTTPException(
+                status_code=500,
+                detail=response
+            )
+
+        return response
+
+    except Exception as e:
+
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+
+
+## Now restart FastAPI service.
+## sudo systemctl restart fastapi
+### Now test from Swagger UI:
+## http://stage.hispindia.org:8000/docs 
+## https://stage.hispindia.org/docs#/
+## http://127.0.0.1:8000/docs
+## https://chatgpt.com/c/69eb0dbc-25ec-83e8-ab07-56ab568ff443
+###API payload example:
+'''
+{
+  "to_emails": [
+    "mithilesh.thakur@hispindia.org","mithilesh.hisp@gmail.com"
+  ],
+  "subject": "Test Email from FastAPI",
+  "body": "This email sent from FastAPI endpoint"
+}
+
+### send-waiver-email
+{
+  "to_emails": [
+    "mithilesh.thakur@hispindia.org","saurabh.leekha@hispindia.org"
+  ],
+  "legal_name": "ABC Foundation",
+  "region": "SAR",
+  "country": "India",
+  "registration_number": "REG-001",
+  "aoc_name": "John Smith",
+  "flag_category": "Politically Exposed Person (PEP)",
+  "flagged_entity": "Mr XYZ",
+  "waiver_date": "2026-05-29 12:30 UTC",
+  "justification": "The flagged entity is not linked to the organisation operations."
+}
+
+### registration payload
+
+{
+    "to_email": "mithilesh.thakur@hispindia.org",
+    "legal_name": "ABC NGO",
+    "region_code": "SAR",
+    "country": "India",
+    "registration_number": "REG12345",
+    "submission_date": "2026-06-14 14:30 UTC"
+}
+
+### send-uin-assignment-email
+{
+  "to_email": "mithilesh.thakur@hispindia.org",
+  "affiliate_name": "Afghan Family Guidance Association",
+  "legal_name": "Afghan Family Guidance Association",
+  "uin_code": "IPPF-AFG-001",
+  "affiliation_type": "Full Member",
+  "assignment_date": "14 Jun 2026 14:30 UTC"
+}
+
+'''
 
 '''    
 @app.on_event("startup")

@@ -628,7 +628,8 @@ def update_tei_attributeValue_in_dhis2_for_api(attribute_id, tei_uid, tei_get_ur
 
         new_attribute_value = "true"
         org_unit = single_tei_details["orgUnit"]
-
+        #org_unit =  "gR7HVAvnBl7"
+        #org_unit =  "iE577RFsvtj"
         existing_attributes = single_tei_details.get("attributes", [])
 
         updated = False
@@ -759,4 +760,705 @@ def update_tei_attributeValue_in_dhis2( attribute_id, tei_uid, tei_get_url, sess
 
         print(f" Failed to update TEI attributeValue. Error: {response.text}")
         logging.error(f"Failed to update TEI attributeValue . tei_uid : {tei_uid} . Status code: {response.status_code} . error details: {response.json()} .Error: {response.text}")
+
+
+import smtplib
+import logging
+
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+def send_email_api(subject, body, to_emails):
+
+    try:
+
+        FROM_EMAIL = FROM_EMAIL_ADDR
+        FROM_PASSWORD = FROM_EMAIL_PASSWORD
+
+        msg = MIMEMultipart()
+
+        msg["From"] = FROM_EMAIL
+        msg["To"] = ",".join(to_emails)
+        msg["Subject"] = subject
+
+        msg.attach(MIMEText(body, "plain"))
+
+        #server = smtplib.SMTP("smtp.gmail.com", 587)
+        server = smtplib.SMTP("smtp.office365.com", 587)
+
+        server.starttls()
+
+        server.login(FROM_EMAIL, FROM_PASSWORD)
+
+        text = msg.as_string()
+
+        server.sendmail(FROM_EMAIL, to_emails, text)
+
+        server.quit()
+
+        logging.info(f"Email sent successfully to {to_emails}")
+
+        return {
+            "status": "success",
+            "message": "Email sent successfully",
+            "to_emails": to_emails
+        }
+
+    except Exception as e:
+
+        logging.error(f"Email failed: {str(e)}")
+
+        return {
+            "status": "failed",
+            "message": str(e)
+        }
+
+
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import smtplib
+import logging
+
+def send_waiver_email(request):
+
+    try:
+
+        FROM_EMAIL = FROM_EMAIL_ADDR
+        FROM_PASSWORD = FROM_EMAIL_PASSWORD
+
+        subject = f"Waiver Request Submitted - {request.legal_name}"
+
+        html_body = f"""
+        <html>
+        <body>
+
+        <p>Dear Waiver Management Team,</p>
+
+        <p>
+        A waiver request has been submitted through the IPPF UIN Portal and requires your review and determination.
+        </p>
+
+        
+        <h3 style="color:#0056b3;">Affiliate & Waiver Details</h3>
+
+        <table border="1" cellpadding="6" cellspacing="0">
+            <tr>
+                <td><b>Organisation Name</b></td>
+                <td>{request.legal_name}</td>
+            </tr>
+
+            <tr>
+                <td><b>Region / Country</b></td>
+                <td>{request.region} / {request.country}</td>
+            </tr>
+
+            <tr>
+                <td><b>Registration Number</b></td>
+                <td>{request.registration_number}</td>
+            </tr>
+
+            <tr>
+                <td><b>Assigned AOC</b></td>
+                <td>{request.aoc_name}</td>
+            </tr>
+
+            <tr>
+                <td><b>Flag Category</b></td>
+                <td>{request.flag_category}</td>
+            </tr>
+
+            <tr>
+                <td><b>Individual / Entity Flagged</b></td>
+                <td>{request.flagged_entity}</td>
+            </tr>
+
+            <tr>
+                <td><b>Waiver Submitted Date</b></td>
+                <td>{request.waiver_date}</td>
+            </tr>
+        </table>
+
+        
+        <h3 style="color:#0056b3;">AOC Justification / Notes</h3>
+
+        <p>{request.justification}</p>
+
+       
+        <h3 style="color:#0056b3;">Required Action</h3>
+        <ol>
+            <li>Log in to the UIN Portal</li>
+            <li>Navigate to Eligibility Check & Manage Waivers</li>
+            <li>Review the Organisation Compliance Report</li>
+            <li>Approve or Decline the waiver</li>
+        </ol>
+
+        <p>
+        Please note that UIN generation cannot proceed until the waiver determination is completed.
+        </p>
+
+        <br>
+
+        <p>
+        Yours sincerely,<br>
+        <b>IPPF UIN Portal</b><br>
+        International Planned Parenthood Federation<br>
+        <a href="https://uin.ippf.org">
+            https://uin.ippf.org
+        </a>
+        </p>
+
+        </body>
+        </html>
+        """
+
+        msg = MIMEMultipart("alternative")
+
+        msg["From"] = FROM_EMAIL
+        msg["To"] = ",".join(request.to_emails)
+        msg["Subject"] = subject
+
+        msg.attach(MIMEText(html_body, "html"))
+
+        #server = smtplib.SMTP("smtp.gmail.com", 587)
+        server = smtplib.SMTP("smtp.office365.com", 587)
+        
+        server.starttls()
+
+        server.login(FROM_EMAIL, FROM_PASSWORD)
+
+        server.sendmail(
+            FROM_EMAIL,
+            request.to_emails,
+            msg.as_string()
+        )
+
+        server.quit()
+
+        logging.info("Waiver email sent successfully")
+        logging.info(f"Email sent successfully to {request.to_emails}")
+
+        return {
+            "status": "success",
+            "message": "Waiver email sent successfully",
+            "to_emails": request.to_emails
+        }
+
+    except Exception as e:
+
+        logging.error(str(e))
+
+        return {
+            "status": "failed",
+            "error": str(e)
+        }    
+    
+
+
+#import smtplib
+#from email.mime.text import MIMEText
+
+
+def send_registration_email(
+    to_email,
+    legal_name,
+    region_code,
+    country,
+    registration_number,
+    submission_date
+):
+    try:
+        FROM_EMAIL = FROM_EMAIL_ADDR
+        FROM_PASSWORD = FROM_EMAIL_PASSWORD
+        subject = "IPPF UIN Portal — Your Registration Submission Has Been Received"
+
+        html_body = f"""
+
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #333333; line-height: 1.6;">
+
+        <p>Dear <strong>{legal_name}</strong>,</p>
+
+        <p>
+            We write to confirm that IPPF has successfully received the registration
+            submission for your organisation through the IPPF UIN Portal.
+            Your application has been recorded and will now proceed to the
+            compliance review stage.
+        </p>
+
+        <h3 style="color:#005A9C;">Submission Details</h3>
+
+        <table style="border-collapse: collapse;">
+            <tr>
+                <td><strong>Organisation Name:</strong></td>
+                <td>{legal_name}</td>
+            </tr>
+            <tr>
+                <td><strong>Region:</strong></td>
+                <td>{region_code}</td>
+            </tr>
+            <tr>
+                <td><strong>Country of Registration:</strong></td>
+                <td>{country}</td>
+            </tr>
+            <tr>
+                <td><strong>Registration Number:</strong></td>
+                <td>{registration_number}</td>
+            </tr>
+            <tr>
+                <td><strong>Submission Date:</strong></td>
+                <td>{submission_date}</td>
+            </tr>
+        </table>
+
+        <h3 style="color:#005A9C;">What Happens Next?</h3>
+
+        <p>
+            Your submission will be reviewed by the assigned
+            <strong>IPPF Architect of Cooperation (AOC)</strong>.
+            The AOC will verify the information and documentation provided and,
+            once satisfied, will initiate an AML/KYC compliance screening through
+            the Acuity system on your behalf.
+        </p>
+
+        <p>Please note the following:</p>
+
+        <ul>
+            <li>You do not need to take any further action at this stage.</li>
+            <li>You will be notified by email if additional information or corrections are required.</li>
+            <li>Once the compliance process is complete, you will receive further notification regarding the outcome.</li>
+        </ul>
+
+        <p>
+            If you believe any information submitted was incorrect or requires amendment,
+            please contact your designated IPPF focal point immediately,
+            as edits may not be possible after submission.
+        </p>
+
+        <p>
+            Should you have any questions or require assistance,
+            please contact your designated IPPF focal point or reach out to the
+            IPPF UIN Support team.
+        </p>
+
+        <br>
+
+        <p>
+            Yours sincerely,<br>
+            <strong>IPPF UIN Portal</strong><br>
+            International Planned Parenthood Federation
+        </p>
+
+        <p>
+            <a href="https://uin.ippf.org">
+                https://uin.ippf.org
+            </a>
+        </p>
+        
+        </body>
+        </html>
+
+        """
+        msg = MIMEText(html_body, "html")
+        #msg.attach(MIMEText(html_body, "html"))
+        #msg = MIMEText(body)
+        msg["Subject"] = subject
+        msg["From"] = FROM_EMAIL
+        msg["To"] = to_email
+
+        #msg.attach(MIMEText(html_body, "html"))
+
+        #server = smtplib.SMTP("smtp.gmail.com", 587)
+        server = smtplib.SMTP("smtp.office365.com", 587)
+            
+        server.starttls()
+
+        server.login(FROM_EMAIL, FROM_PASSWORD)
+
+        server.sendmail(
+            FROM_EMAIL,
+            to_email,
+            msg.as_string()
+        )
+
+        server.quit()
+
+        logging.info("Registration email sent successfully")
+        logging.info(f"Email sent successfully to {to_email}")
+
+        return {
+            "status": "success",
+            "message": "Registration email sent successfully",
+            "to_emails": to_email
+        }
+
+    except Exception as e:
+
+        logging.error(str(e))
+
+        return {
+                "status": "failed",
+                "error": str(e)
+            }        
+
+    '''
+        with smtplib.SMTP("smtp.office365.com", 587) as server:
+            server.starttls()
+
+            # Microsoft 365 credentials
+            server.login(
+                "uin.notification@ippf.org",
+                EMAIL_PASSWORD
+            )
+
+            server.send_message(msg)
+
+        return {"status": "success", "sent_to": to_email}
+
+    '''
+
+
+def send_registration_email_aoc(
+    to_email,
+    legal_name,
+    region_code,
+    country,
+    registration_number,
+    submission_date
+):
+    try:
+        organisation_type = "AOC"
+        FROM_EMAIL = FROM_EMAIL_ADDR
+        FROM_PASSWORD = FROM_EMAIL_PASSWORD
+        subject = "IPPF UIN Portal — Action Required: New Affiliate Registration Submitted for Review"
+
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #333333;">
+
+        <p>Dear <strong>AOC</strong>,</p>
+
+        <p>
+        A new affiliate registration has been submitted through the IPPF UIN Portal and has been assigned to you for compliance review.
+        Please log in to the portal at your earliest convenience to begin the review process.
+        </p>
+
+        <h3 style="color:#0056b3;">Affiliate Details</h3>
+
+        <table style="border-collapse: collapse; width: 100%; max-width: 700px;">
+            <tr>
+                <td style="padding: 8px; border: 1px solid #dddddd;"><strong>Organisation Name</strong></td>
+                <td style="padding: 8px; border: 1px solid #dddddd;">{legal_name}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border: 1px solid #dddddd;"><strong>Region</strong></td>
+                <td style="padding: 8px; border: 1px solid #dddddd;">{region_code}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border: 1px solid #dddddd;"><strong>Country of Registration</strong></td>
+                <td style="padding: 8px; border: 1px solid #dddddd;">{country}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border: 1px solid #dddddd;"><strong>Organisation Type</strong></td>
+                <td style="padding: 8px; border: 1px solid #dddddd;">{organisation_type}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border: 1px solid #dddddd;"><strong>Registration Number</strong></td>
+                <td style="padding: 8px; border: 1px solid #dddddd;">{registration_number}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; border: 1px solid #dddddd;"><strong>Submission Date (UTC)</strong></td>
+                <td style="padding: 8px; border: 1px solid #dddddd;">{submission_date}</td>
+            </tr>
+        </table>
+
+        <h3 style="color:#0056b3;">Required Actions</h3>
+
+        <ul>
+            <li>
+                Log in to the UIN Portal and navigate to:
+                <strong>Affiliate Registration &gt; New Registration &amp; Search</strong>.
+            </li>
+
+            <li>
+                Search for the affiliate by name, region, or country and click
+                <strong>View</strong> to open the full registration record.
+            </li>
+
+            <li>
+                Review all submitted data and uploaded documents for completeness and accuracy,
+                including KYC information, board member and senior management details,
+                bank details, and the additional documents checklist.
+            </li>
+
+            <li>
+                If the data is complete and accurate, scroll to the bottom of the record,
+                tick the <strong>Disclaimer</strong> checkbox, and click
+                <strong>Send to Acuity</strong> to initiate the AML/KYC compliance screening.
+            </li>
+
+            <li>
+                If any data appears incomplete or incorrect, contact the affiliate
+                to request corrections before proceeding.
+            </li>
+        </ul>
+
+        <div style="background-color:#fff3cd; border:1px solid #ffeeba; padding:12px; margin-top:15px;">
+            <strong>Important:</strong><br>
+            The Acuity screening process takes approximately 15 minutes to complete.
+            Do not close the browser or navigate away from the
+            <strong>Acuity Check List</strong> screen during this time.
+        </div>
+
+        <p>
+        Should you have any questions or require assistance, please contact your designated
+        IPPF focal point or reach out to the IPPF UIN Support team.
+        </p>
+
+        <br>
+
+        <p>
+        Yours sincerely,<br><br>
+
+        <strong>IPPF UIN Portal</strong><br>
+        International Planned Parenthood Federation<br>
+        <a href="https://uin.ippf.org">
+                https://uin.ippf.org
+        </a>
+       
+        </p>
+
+        <hr>
+
+        <p style="font-size:12px;color:#777777;">
+        This is an automated notification generated by the IPPF UIN Portal.
+        Please do not reply directly to this email.
+        </p>
+
+        </body>
+        </html>
+
+        """
+        msg = MIMEText(html_body, "html")
+        #msg.attach(MIMEText(html_body, "html"))
+        #msg = MIMEText(body)
+        msg["Subject"] = subject
+        msg["From"] = FROM_EMAIL
+        msg["To"] = to_email
+
+        #msg.attach(MIMEText(html_body, "html"))
+
+        #server = smtplib.SMTP("smtp.gmail.com", 587)
+        server = smtplib.SMTP("smtp.office365.com", 587)
+            
+        server.starttls()
+
+        server.login(FROM_EMAIL, FROM_PASSWORD)
+
+        server.sendmail(
+            FROM_EMAIL,
+            to_email,
+            msg.as_string()
+        )
+
+        server.quit()
+
+        logging.info(f"AOC — New Affiliate Registration Submission Received email sent successfully")
+        logging.info(f"AOC — New Affiliate Registration Submission Received sent successfully to {to_email}")
+
+        return {
+            "status": "success",
+            "message": "AOC — New Affiliate Registration Submission Received email sent successfully",
+            "to_emails": to_email
+        }
+
+    except Exception as e:
+
+        logging.error(str(e))
+
+        return {
+                "status": "failed",
+                "error": str(e)
+            }        
+
+
+def send_uin_assignment_email(request):
+    try:
+        
+        FROM_EMAIL = FROM_EMAIL_ADDR
+        FROM_PASSWORD = FROM_EMAIL_PASSWORD
+
+        subject = "IPPF UIN Portal — Your Unique Identification Number (UIN) Has Been Assigned"
+
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #333333;">
+
+        <p>Dear <strong>{request.affiliate_name}</strong>,</p>
+
+        <p>
+        We are pleased to inform you that your organisation has successfully completed the
+        IPPF onboarding and compliance process. A <strong>Unique Identification Number (UIN)</strong>
+        has been assigned to your organisation, confirming your status as an IPPF affiliated entity.
+        </p>
+
+        <h3 style="color:#0056b3;">UIN Assignment Details</h3>
+
+        <table style="border-collapse: collapse; width: 100%;">
+            <tr>
+                <td style="padding:8px;border:1px solid #ddd;"><strong>Organisation Name</strong></td>
+                <td style="padding:8px;border:1px solid #ddd;">{request.legal_name}</td>
+            </tr>
+            <tr>
+                <td style="padding:8px;border:1px solid #ddd;"><strong>Unique Identification Number (UIN)</strong></td>
+                <td style="padding:8px;border:1px solid #ddd;"><strong>{request.uin_code}</strong></td>
+            </tr>
+            <tr>
+                <td style="padding:8px;border:1px solid #ddd;"><strong>Affiliation Type</strong></td>
+                <td style="padding:8px;border:1px solid #ddd;">{request.affiliation_type}</td>
+            </tr>
+            <tr>
+                <td style="padding:8px;border:1px solid #ddd;"><strong>UIN Assignment Date (UTC)</strong></td>
+                <td style="padding:8px;border:1px solid #ddd;">{request.assignment_date}</td>
+            </tr>
+        </table>
+
+        <br>
+
+        <div style="background-color:#d1ecf1;border:1px solid #bee5eb;padding:12px;">
+            <strong>Important — Please retain this information for your records</strong>
+            <p>
+            Your UIN is a unique, permanent identifier assigned to your organisation by IPPF.
+            It will be referenced in all future grant disbursements, compliance correspondence,
+            and financial transactions between your organisation and IPPF.
+            </p>
+        </div>
+
+        <h3 style="color:#0056b3;">Next Steps</h3>
+
+        <ul>
+            <li>Please save this email and keep a record of your UIN for all future correspondence with IPPF.</li>
+            <li>Ensure that your finance team is informed of this UIN for NetSuite payment processing purposes.</li>
+            <li>Your IPPF focal point will be in contact regarding the next steps for your affiliation.</li>
+        </ul>
+
+        <p>
+        We look forward to a productive partnership with your organisation.
+        </p>
+
+        <p>
+        Should you have any questions or require assistance, please contact your designated
+        IPPF focal point or reach out to the IPPF UIN Support team.
+        </p>
+
+        <br>
+
+        <p>
+        Yours sincerely,<br><br>
+        <strong>IPPF UIN Portal</strong><br>
+        International Planned Parenthood Federation<br>
+        <a href="https://uin.ippf.org">
+                https://uin.ippf.org
+        </a>
+        </p>
+
+        </body>
+        </html>
+
+        """
+        msg = MIMEText(html_body, "html")
+        #msg.attach(MIMEText(html_body, "html"))
+        #msg = MIMEText(body)
+        msg["Subject"] = subject
+        msg["From"] = FROM_EMAIL
+        msg["To"] = request.to_email
+
+        #msg.attach(MIMEText(html_body, "html"))
+
+        #server = smtplib.SMTP("smtp.gmail.com", 587)
+        server = smtplib.SMTP("smtp.office365.com", 587)
+            
+        server.starttls()
+
+        server.login(FROM_EMAIL, FROM_PASSWORD)
+
+        server.sendmail(
+            FROM_EMAIL,
+            request.to_email,
+            msg.as_string()
+        )
+
+        server.quit()
+
+        logging.info(f"Your Unique Identification Number (UIN) Has Been Assigned email sent successfully")
+        logging.info(f"Your Unique Identification Number (UIN) Has Been Assigned email sent successfully to {request.to_email}")
+
+        return {
+            "status": "success",
+            "message": "Your Unique Identification Number (UIN) Has Been Assigned email sent successfully",
+            "to_emails": request.to_email
+        }
+
+    except Exception as e:
+
+        logging.error(str(e))
+
+        return {
+                "status": "failed",
+                "error": str(e)
+            }        
+
+
+
+
+
+def build_registration_received_email(
+    legal_name,
+    region_code,
+    country,
+    registration_number,
+    submission_date
+):
+
+    subject = "IPPF UIN Portal — Your Registration Submission Has Been Received"
+
+    body = f"""
+    Dear {legal_name},
+
+    We write to confirm that IPPF has successfully received the registration submission for your organisation through the IPPF UIN Portal. Your application has been recorded and will now proceed to the compliance review stage.
+
+    Submission Details
+
+    Organisation Name:   {legal_name}
+    Region:              {region_code}
+    Country of Registration: {country}
+    Registration Number: {registration_number}
+    Submission Date:     {submission_date}
+
+    What Happens Next?
+
+    Your submission will be reviewed by the assigned IPPF Architect of Cooperation (AOC). The AOC will verify the information and documentation provided and, once satisfied, will initiate an AML/KYC compliance screening through the Acuity system on your behalf.
+
+    Please note the following:
+
+    • You do not need to take any further action at this stage.
+    • You will be notified by email if additional information or corrections are required.
+    • Once the compliance process is complete, you will receive further notification regarding the outcome.
+
+    If you believe any information submitted was incorrect or requires amendment, please contact your designated IPPF focal point immediately, as edits may not be possible after submission.
+
+    Should you have any questions or require assistance, please contact your designated IPPF focal point or reach out to the IPPF UIN Support team.
+
+    Yours sincerely,
+
+    IPPF UIN Portal
+    International Planned Parenthood Federation
+    https://links.hispindia.org/ippf_uin
+
+    """
+
+    return subject, body
+
+
+
+
 
